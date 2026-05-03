@@ -1,0 +1,492 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Linear Algebra for AI 09 &mdash; Gradients, Jacobians &amp; Backprop</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700&family=Space+Grotesk:wght@400;500;600;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css">
+    <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.js"></script>
+    <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/contrib/auto-render.min.js" onload="renderMathInElement(document.body,{delimiters:[{left:'$$',right:'$$',display:true},{left:'$',right:'$',display:false}]})"></script>
+    <style>
+        :root { --bg-primary: #0a0a0a; --bg-card: #0d1117; --bg-code: #161b22; --text-primary: #e6edf3; --text-secondary: #8b949e; --accent: #a78bfa; --accent-dim: #a78bfa44; --accent-glow: #a78bfa33; --accent-2: #f472b6; --accent-3: #fbbf24; --accent-4: #34d399; --border: #21262d; --font-display: 'Space Grotesk', sans-serif; --font-mono: 'JetBrains Mono', 'Fira Code', monospace; --font-body: 'Inter', sans-serif; --max-width: 900px; }
+        *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+        html { scroll-behavior: smooth; }
+        body { background: var(--bg-primary); color: var(--text-primary); font-family: var(--font-body); font-size: 17px; line-height: 1.7; overflow-x: hidden; }
+        .hero { min-height: 100vh; display: flex; flex-direction: column; justify-content: center; align-items: center; padding: 2rem 1.5rem; text-align: center; position: relative; }
+        .hero::before { content: ''; position: absolute; top: 0; left: 50%; transform: translateX(-50%); width: 700px; height: 600px; background: radial-gradient(circle, var(--accent-glow) 0%, transparent 70%); pointer-events: none; z-index: 0; }
+        .hero > * { position: relative; z-index: 1; }
+        .series-label { font-family: var(--font-mono); font-size: 0.85rem; color: var(--accent); letter-spacing: 0.15em; text-transform: uppercase; margin-bottom: 1rem; }
+        .hero h1 { font-family: var(--font-display); font-size: clamp(2rem, 5vw, 3.2rem); font-weight: 700; color: var(--text-primary); line-height: 1.2; margin-bottom: 1rem; }
+        .hero h1 .accent { color: var(--accent); }
+        .hero .subtitle { font-size: 1.1rem; color: var(--text-secondary); max-width: 640px; margin-bottom: 2rem; }
+        .tags { display: flex; flex-wrap: wrap; gap: 0.5rem; justify-content: center; margin-bottom: 2.5rem; }
+        .tag { font-family: var(--font-mono); font-size: 0.75rem; padding: 0.25rem 0.75rem; border-radius: 999px; border: 1px solid var(--accent); color: var(--accent); background: var(--accent-dim); white-space: nowrap; }
+        .pipeline { display: flex; flex-wrap: wrap; align-items: center; justify-content: center; gap: 0.25rem; margin-bottom: 1rem; max-width: var(--max-width); }
+        .pipeline-step { font-family: var(--font-mono); font-size: 0.7rem; padding: 0.3rem 0.7rem; background: var(--bg-card); border: 1px solid var(--border); border-radius: 4px; color: var(--text-secondary); white-space: nowrap; }
+        .pipeline-arrow { color: var(--accent); font-size: 0.9rem; font-weight: 700; }
+        .slide { min-height: 100vh; max-width: var(--max-width); margin: 0 auto; padding: 4rem 1.5rem; position: relative; display: flex; flex-direction: column; justify-content: center; }
+        .slide-number { font-family: var(--font-display); font-size: 5rem; font-weight: 700; color: var(--accent-dim); position: absolute; top: 2rem; right: 1.5rem; line-height: 1; user-select: none; }
+        .slide h2 { font-family: var(--font-display); font-size: 1.9rem; font-weight: 700; color: var(--accent); margin-bottom: 1.5rem; line-height: 1.25; }
+        .slide h3 { font-family: var(--font-display); font-size: 1.3rem; font-weight: 600; color: var(--text-primary); margin-top: 1.5rem; margin-bottom: 0.75rem; }
+        .slide p { margin-bottom: 1rem; color: var(--text-secondary); }
+        .slide p strong { color: var(--text-primary); }
+        .slide ul, .slide ol { margin-bottom: 1rem; padding-left: 1.5rem; color: var(--text-secondary); }
+        .slide li { margin-bottom: 0.4rem; }
+        .slide li strong { color: var(--text-primary); }
+        .slide code { background: var(--bg-code); padding: 0.1rem 0.35rem; border-radius: 3px; font-family: var(--font-mono); font-size: 0.85em; color: var(--accent); }
+        .table-wrap { overflow-x: auto; margin: 1.25rem 0; border-radius: 8px; border: 1px solid var(--border); }
+        table { width: 100%; border-collapse: collapse; font-size: 0.9rem; }
+        th { background: var(--bg-code); color: var(--accent); font-weight: 600; text-align: left; padding: 0.75rem 1rem; border-bottom: 1px solid var(--border); font-family: var(--font-display); white-space: nowrap; }
+        td { padding: 0.6rem 1rem; border-bottom: 1px solid var(--border); color: var(--text-secondary); vertical-align: top; }
+        tr:last-child td { border-bottom: none; }
+        tr:nth-child(even) td { background: rgba(13, 17, 23, 0.5); }
+        .diagram-grid { display: grid; gap: 0.75rem; margin: 1.5rem 0; padding: 1.5rem; background: var(--bg-card); border: 1px solid var(--border); border-radius: 8px; }
+        .diagram-grid.cols-2 { grid-template-columns: 1fr 1fr; }
+        .diagram-grid.cols-3 { grid-template-columns: 1fr 1fr 1fr; }
+        .diagram-panel { padding: 1rem; background: var(--bg-code); border: 1px solid var(--border); border-radius: 6px; }
+        .diagram-panel.accent-border { border-left: 3px solid var(--accent); }
+        .diagram-panel.r { border-left: 3px solid var(--accent-2); }
+        .diagram-panel.y { border-left: 3px solid var(--accent-3); }
+        .diagram-panel.g { border-left: 3px solid var(--accent-4); }
+        .diagram-panel h4 { font-family: var(--font-display); font-size: 1rem; color: var(--accent); margin-bottom: 0.5rem; }
+        .diagram-panel.r h4 { color: var(--accent-2); } .diagram-panel.y h4 { color: var(--accent-3); } .diagram-panel.g h4 { color: var(--accent-4); }
+        .diagram-panel p, .diagram-panel ul { font-size: 0.9rem; }
+        .callout { background: var(--bg-card); border-left: 3px solid var(--accent); border-radius: 0 8px 8px 0; padding: 1rem 1.25rem; margin: 1.25rem 0; }
+        .callout p { margin-bottom: 0; }
+        .callout .callout-label { font-family: var(--font-mono); font-size: 0.75rem; color: var(--accent); text-transform: uppercase; letter-spacing: 0.1em; margin-bottom: 0.3rem; }
+        .canvas-wrap { background: var(--bg-card); border: 1px solid var(--border); border-radius: 8px; padding: 1rem; margin: 1.25rem 0; overflow-x: auto; }
+        .canvas-wrap canvas, .canvas-wrap svg { display: block; margin: 0 auto; max-width: 100%; }
+        .control-panel { background: var(--bg-card); border: 1px solid var(--border); border-radius: 8px; padding: 1.25rem; margin: 1.25rem 0; }
+        .control-row { display: flex; flex-wrap: wrap; align-items: center; gap: 0.75rem; margin-bottom: 0.75rem; }
+        .control-row label { font-family: var(--font-mono); font-size: 0.8rem; color: var(--text-secondary); min-width: 130px; }
+        .btn { font-family: var(--font-mono); font-size: 0.8rem; padding: 0.4rem 0.9rem; background: var(--accent-dim); color: var(--accent); border: 1px solid var(--accent); border-radius: 4px; cursor: pointer; transition: background 0.15s ease; }
+        .btn:hover { background: rgba(167,139,250,0.25); }
+        .btn.secondary { background: var(--bg-code); color: var(--text-secondary); border-color: var(--border); }
+        .control-row .val { font-family: var(--font-mono); font-size: 0.85rem; color: var(--accent); min-width: 80px; text-align: right; }
+        .control-row select { background: var(--bg-code); border: 1px solid var(--border); color: var(--text-primary); border-radius: 4px; padding: 0.3rem 0.5rem; font-family: var(--font-mono); font-size: 0.8rem; }
+        .metric-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 0.5rem; margin-top: 0.75rem; }
+        .metric { background: var(--bg-code); border: 1px solid var(--border); border-radius: 6px; padding: 0.6rem 0.8rem; text-align: center; }
+        .metric .metric-label { font-family: var(--font-mono); font-size: 0.7rem; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.08em; }
+        .metric .metric-value { font-family: var(--font-display); font-size: 1.25rem; color: var(--accent); font-weight: 600; margin-top: 0.2rem; }
+        .contents-list { list-style: none; padding-left: 0; counter-reset: contents; }
+        .contents-list li { counter-increment: contents; padding: 0.6rem 0; border-bottom: 1px solid var(--border); display: flex; align-items: center; gap: 1rem; }
+        .contents-list li:last-child { border-bottom: none; }
+        .contents-list li::before { content: counter(contents, decimal-leading-zero); font-family: var(--font-mono); font-size: 0.85rem; color: var(--accent); min-width: 2rem; }
+        .contents-list a { color: var(--text-primary); text-decoration: none; }
+        .contents-list a:hover { color: var(--accent); }
+        .footer { text-align: center; padding: 3rem 1.5rem; color: var(--text-secondary); font-size: 0.85rem; border-top: 1px solid var(--border); max-width: var(--max-width); margin: 0 auto; }
+        .footer a { color: var(--accent); text-decoration: none; }
+        .katex { color: var(--text-primary); } .katex-display { margin: 1rem 0; overflow-x: auto; overflow-y: hidden; }
+        @media (max-width: 640px) { .slide { padding: 3rem 1rem; min-height: auto; } .slide-number { font-size: 3rem; top: 1.5rem; right: 1rem; } .slide h2 { font-size: 1.5rem; } .diagram-grid.cols-2, .diagram-grid.cols-3 { grid-template-columns: 1fr; } .hero h1 { font-size: 1.8rem; } table { font-size: 0.78rem; } }
+    </style>
+</head>
+<body>
+
+<header class="hero">
+    <div class="series-label">Linear Algebra for AI &mdash; Presentation 09</div>
+    <h1>Gradients, Jacobians &amp; <span class="accent">Backprop</span></h1>
+    <p class="subtitle">A derivative is the best linear approximation of a function. The Jacobian is what that linear approximation looks like as a matrix. The chain rule is matrix multiplication. Backprop is just multiplying these matrices in the cheap order.</p>
+
+    <div class="tags">
+        <span class="tag">Jacobian</span><span class="tag">chain rule</span>
+        <span class="tag">VJP</span><span class="tag">JVP</span>
+        <span class="tag">backprop</span><span class="tag">autograd</span>
+    </div>
+
+    <div class="pipeline">
+        <span class="pipeline-step">f(x)</span>
+        <span class="pipeline-arrow">&rarr;</span>
+        <span class="pipeline-step">df &asymp; J·dx</span>
+        <span class="pipeline-arrow">&rarr;</span>
+        <span class="pipeline-step">chain: J = J<sub>L</sub>···J<sub>1</sub></span>
+        <span class="pipeline-arrow">&rarr;</span>
+        <span class="pipeline-step">backward: VJPs</span>
+    </div>
+</header>
+
+<section class="slide" id="slide-00">
+    <div class="slide-number">00</div>
+    <h2>Topics We'll Cover</h2>
+    <ul class="contents-list">
+        <li><a href="#slide-01">Derivative as the Best Linear Approximation</a></li>
+        <li><a href="#slide-02">The Jacobian Matrix</a></li>
+        <li><a href="#slide-03">The Chain Rule is Matrix Multiplication</a></li>
+        <li><a href="#slide-04">JVP vs VJP &mdash; Forward vs Reverse Mode</a></li>
+        <li><a href="#slide-05">Why Backprop is Reverse Mode</a></li>
+        <li><a href="#slide-06">Common Layers' Jacobians</a></li>
+        <li><a href="#slide-07">Backward Through a Linear Layer</a></li>
+        <li><a href="#slide-08">Backward Through Softmax + Cross-Entropy</a></li>
+        <li><a href="#slide-09">Interactive: Backprop Walker</a></li>
+        <li><a href="#slide-10">Cheat Sheet</a></li>
+    </ul>
+</section>
+
+<section class="slide" id="slide-01">
+    <div class="slide-number">01</div>
+    <h2>Derivative as the Best Linear Approximation</h2>
+    <p>For a smooth function $f : \mathbb{R}^n \to \mathbb{R}^m$, the derivative at a point $\mathbf{x}_0$ is the unique linear map $J : \mathbb{R}^n \to \mathbb{R}^m$ such that</p>
+    <p>$$f(\mathbf{x}_0 + \mathbf{h}) = f(\mathbf{x}_0) + J\mathbf{h} + o(\|\mathbf{h}\|).$$</p>
+    <p>"Best linear approximation": no other linear map gets the second term right to higher order. The little-$o$ tail vanishes faster than $\mathbf{h}$ as $\mathbf{h} \to 0$.</p>
+
+    <p>This definition is the right one to internalise. A derivative is <em>not</em> a number, a slope, or a partial derivative &mdash; it's a <em>linear map</em>. For scalar-to-scalar $f : \mathbb{R} \to \mathbb{R}$ that linear map is multiplication by a single number, and we call that number "the derivative". For vector-valued and vector-input functions the linear map is multi-dimensional and is encoded by a matrix.</p>
+
+    <div class="callout">
+        <div class="callout-label">Why this framing matters</div>
+        <p>Once you read derivatives as linear maps, the chain rule becomes composition of linear maps &mdash; matrix multiplication. Backprop becomes "multiply the matrices in a smart order". Vector-Jacobian products and Jacobian-vector products become "apply $J^\top$ to a vector" and "apply $J$ to a vector". All of autograd is a single piece of vocabulary applied consistently.</p>
+    </div>
+</section>
+
+<section class="slide" id="slide-02">
+    <div class="slide-number">02</div>
+    <h2>The Jacobian Matrix</h2>
+    <p>For $f : \mathbb{R}^n \to \mathbb{R}^m$ with components $f = (f_1, \ldots, f_m)$, the <strong>Jacobian</strong> at $\mathbf{x}$ is the $m \times n$ matrix of partial derivatives:</p>
+    <p>$$J_f(\mathbf{x}) = \begin{pmatrix} \partial f_1/\partial x_1 &amp; \cdots &amp; \partial f_1/\partial x_n \\ \vdots &amp; \ddots &amp; \vdots \\ \partial f_m/\partial x_1 &amp; \cdots &amp; \partial f_m/\partial x_n \end{pmatrix}.$$</p>
+
+    <p>Three special cases that recur:</p>
+    <ul>
+        <li><strong>Scalar input, scalar output</strong> ($n = m = 1$): $J$ is a 1&times;1 matrix, a single number &mdash; the ordinary derivative.</li>
+        <li><strong>Vector input, scalar output</strong> ($m = 1$): $J$ is a row vector. Its transpose is the <strong>gradient</strong>.</li>
+        <li><strong>Vector input, vector output</strong>: full Jacobian. The standard case in ML &mdash; every intermediate activation is a vector function of a vector.</li>
+    </ul>
+
+    <h3>The gradient is a vector, the Jacobian is a matrix</h3>
+    <p>For a loss $\mathcal{L}(\theta) : \mathbb{R}^P \to \mathbb{R}$ (the case ML cares about), $J_\mathcal{L} \in \mathbb{R}^{1 \times P}$. The gradient $\nabla\mathcal{L} = J_\mathcal{L}^\top \in \mathbb{R}^P$ is what your optimiser steps along. The convention "gradient = column vector, derivative = row vector" comes from this: the gradient is the transpose of the Jacobian, but only when the output is scalar.</p>
+</section>
+
+<section class="slide" id="slide-03">
+    <div class="slide-number">03</div>
+    <h2>The Chain Rule is Matrix Multiplication</h2>
+    <p>If $f = g \circ h$ &mdash; i.e. $f(\mathbf{x}) = g(h(\mathbf{x}))$ &mdash; with $h : \mathbb{R}^n \to \mathbb{R}^k$ and $g : \mathbb{R}^k \to \mathbb{R}^m$, then</p>
+    <p>$$J_f(\mathbf{x}) = J_g(h(\mathbf{x}))\, J_h(\mathbf{x}).$$</p>
+    <p>The Jacobian of a composition is the product of the Jacobians. Just like matrix product of linear maps. Because that's what it is.</p>
+
+    <h3>The deep-network case</h3>
+    <p>A network with $L$ layers: $\mathbf{y} = f_L \circ f_{L-1} \circ \cdots \circ f_1(\mathbf{x})$. Then</p>
+    <p>$$J_f = J_L \, J_{L-1} \, \cdots \, J_1.$$</p>
+    <p>That's the chain rule. The forward pass evaluates the $f_i$'s in order; the backward pass multiplies the $J_i$'s in reverse order.</p>
+
+    <h3>One linear-algebra fact, infinite consequences</h3>
+    <p>Vanishing/exploding gradients: the singular values of the product of Jacobians are roughly the products of the per-layer singular values (up to alignment factors). If each layer has $\sigma_1 = 0.5$, the gradient scale shrinks 1/2 per layer &mdash; $2^{-100}$ at depth 100. If $\sigma_1 = 2$, it explodes. Residual connections, LayerNorm, careful init, gradient clipping &mdash; all attempts to keep this product near 1.</p>
+
+    <div class="callout">
+        <div class="callout-label">Why ResNets train</div>
+        <p>A residual layer computes $\mathbf{y} = \mathbf{x} + f(\mathbf{x})$. Its Jacobian is $J = I + J_f$. As long as $J_f$ has small singular values, $J \approx I$ &mdash; the product across many layers stays well-conditioned. Identity is the only matrix you can multiply by yourself any number of times without trouble. He et al. (2015) did exactly this argument; the trick has stuck.</p>
+    </div>
+</section>
+
+<section class="slide" id="slide-04">
+    <div class="slide-number">04</div>
+    <h2>JVP vs VJP &mdash; Forward vs Reverse Mode</h2>
+    <p>Imagine the chain rule for a 4-layer net: $J = J_4 J_3 J_2 J_1$, with input dim $n$, output dim $m$, hidden dims $h_i$. You almost never want to materialise $J$. Instead you want either</p>
+
+    <div class="diagram-grid cols-2">
+        <div class="diagram-panel accent-border">
+            <h4>JVP &mdash; Jacobian-Vector Product (forward mode)</h4>
+            <p>Compute $J \mathbf{v}$ for a single input direction $\mathbf{v} \in \mathbb{R}^n$.</p>
+            <p>Strategy: $\mathbf{u}_0 = \mathbf{v}$; for $i = 1..L$, $\mathbf{u}_i = J_i \mathbf{u}_{i-1}$. One mat-vec per layer, going forward in lockstep with the forward pass.</p>
+            <p><strong>Cost:</strong> proportional to one forward pass, regardless of output dim. Cheap when $n$ is small.</p>
+        </div>
+        <div class="diagram-panel y">
+            <h4>VJP &mdash; Vector-Jacobian Product (reverse mode)</h4>
+            <p>Compute $\mathbf{w}^\top J$ for a single output direction $\mathbf{w} \in \mathbb{R}^m$ &mdash; equivalently, $J^\top \mathbf{w}$.</p>
+            <p>Strategy: $\mathbf{u}_L = \mathbf{w}$; for $i = L..1$, $\mathbf{u}_{i-1} = J_i^\top \mathbf{u}_i$. Going backward through the layers.</p>
+            <p><strong>Cost:</strong> proportional to one forward pass plus a backward pass. Cheap when $m$ is small.</p>
+        </div>
+    </div>
+
+    <h3>The cost rule of thumb</h3>
+    <p>For a function $f : \mathbb{R}^n \to \mathbb{R}^m$, computing the full Jacobian costs $\min(n, m)$ JVPs or VJPs (whichever is cheaper). Computing one product costs $\sim 1\times$ a forward pass.</p>
+
+    <ul>
+        <li><strong>$n$ large, $m = 1$ (training a deep net):</strong> reverse mode wins by $n$&times;. <em>Backprop is reverse mode.</em></li>
+        <li><strong>$n = 1$, $m$ large (sensitivity analysis of one input variable):</strong> forward mode wins.</li>
+        <li><strong>Square Jacobian:</strong> they cost roughly the same.</li>
+    </ul>
+</section>
+
+<section class="slide" id="slide-05">
+    <div class="slide-number">05</div>
+    <h2>Why Backprop is Reverse Mode</h2>
+    <p>The loss $\mathcal{L}(\theta) : \mathbb{R}^P \to \mathbb{R}$ has $P$ inputs (parameters) and 1 output (the loss). The Jacobian $J_\mathcal{L} \in \mathbb{R}^{1 \times P}$; its transpose is the gradient $\nabla\mathcal{L} \in \mathbb{R}^P$.</p>
+
+    <p>Reverse mode computes $J^\top \mathbf{w}$ for any $\mathbf{w}$. Pick $\mathbf{w} = 1$ (the only output) and you get the full gradient in $\sim 1\times$ the forward pass. Forward mode would need $P$ JVPs &mdash; one per parameter &mdash; to get the same thing. For modern transformers $P \in [10^9, 10^{12}]$. Reverse mode is $10^{12}\times$ cheaper. <em>This factor is why deep learning trains at all.</em></p>
+
+    <h3>Memory cost</h3>
+    <p>The win isn't free. Reverse mode needs to remember activations from the forward pass to apply $J_i^\top$ on the way back. <strong>Activation memory is the dominant memory cost of training.</strong> Tricks to reduce it:</p>
+    <ul>
+        <li><strong>Gradient checkpointing</strong> (Chen et al. 2016): drop activations, recompute on the backward pass. Trades 30% extra compute for $\sqrt{L}$ memory savings.</li>
+        <li><strong>FlashAttention</strong> (Dao 2022): never materialises the $L \times L$ attention scores; recomputes them in tiles on the backward pass.</li>
+        <li><strong>Mixed-precision training:</strong> store activations in bf16/fp16, accumulate in fp32. Halves activation memory.</li>
+        <li><strong>ZeRO-style optimiser-state sharding:</strong> dual problem of activations &mdash; sharding the gradient/optimiser side rather than activations.</li>
+    </ul>
+
+    <div class="callout">
+        <div class="callout-label">A historical note</div>
+        <p>Reverse-mode automatic differentiation was developed in the 1970s in the optimal-control literature (Linnainmaa 1970, Speelpenning 1980). Its application to neural networks was popularised by Rumelhart, Hinton &amp; Williams 1986. Modern frameworks (PyTorch's autograd, JAX's grad/vjp/jvp) implement essentially the same algorithm, with engineering effort going into efficient graph capture, fusion, and scheduling.</p>
+    </div>
+</section>
+
+<section class="slide" id="slide-06">
+    <div class="slide-number">06</div>
+    <h2>Common Layers' Jacobians</h2>
+    <p>The Jacobians of the operations a transformer is built from. You don't compute these explicitly &mdash; the framework does &mdash; but reading them in matrix form is the cleanest way to understand how gradient information flows.</p>
+
+    <div class="table-wrap">
+        <table>
+            <thead><tr><th>Forward</th><th>Jacobian</th><th>VJP (reverse)</th></tr></thead>
+            <tbody>
+                <tr><td>$\mathbf{y} = W\mathbf{x}$</td><td>$\partial\mathbf{y}/\partial\mathbf{x} = W$, $\partial\mathbf{y}/\partial W = \cdots$ (rank-3)</td><td>$\nabla_\mathbf{x} = W^\top \nabla_\mathbf{y}$, $\nabla_W = \nabla_\mathbf{y}\, \mathbf{x}^\top$</td></tr>
+                <tr><td>$\mathbf{y} = \mathbf{x} + \mathbf{b}$</td><td>$\partial\mathbf{y}/\partial\mathbf{x} = I$, $\partial\mathbf{y}/\partial\mathbf{b} = I$</td><td>$\nabla_\mathbf{x} = \nabla_\mathbf{y}$, $\nabla_\mathbf{b} = \nabla_\mathbf{y}$</td></tr>
+                <tr><td>$y_i = \sigma(x_i)$ elementwise</td><td>$\mathrm{diag}(\sigma'(x_i))$</td><td>$\nabla_\mathbf{x} = \sigma'(\mathbf{x}) \odot \nabla_\mathbf{y}$</td></tr>
+                <tr><td>$\mathbf{y} = \mathbf{a} \odot \mathbf{x}$</td><td>$\mathrm{diag}(\mathbf{a})$</td><td>$\nabla_\mathbf{x} = \mathbf{a} \odot \nabla_\mathbf{y}$, $\nabla_\mathbf{a} = \mathbf{x} \odot \nabla_\mathbf{y}$</td></tr>
+                <tr><td>$\mathbf{y} = \mathrm{sum}(\mathbf{x})$</td><td>$\mathbf{1}^\top$</td><td>$\nabla_\mathbf{x} = \nabla_y \cdot \mathbf{1}$ (broadcast)</td></tr>
+                <tr><td>$\mathbf{y} = \mathrm{softmax}(\mathbf{x})$</td><td>$\mathrm{diag}(\mathbf{y}) - \mathbf{y}\mathbf{y}^\top$</td><td>$\nabla_\mathbf{x} = \mathbf{y} \odot (\nabla_\mathbf{y} - (\mathbf{y}^\top \nabla_\mathbf{y}))$</td></tr>
+                <tr><td>$y = \frac{1}{2}\|\mathbf{x}\|^2$</td><td>$\mathbf{x}^\top$</td><td>$\nabla_\mathbf{x} = \nabla_y \cdot \mathbf{x}$</td></tr>
+            </tbody>
+        </table>
+    </div>
+
+    <p>Notice: for elementwise ops the Jacobian is diagonal &mdash; you don't store the matrix, just the diagonal. For matrix multiply, $W^\top$ is the VJP &mdash; transposing a matrix is the entire backward pass for a linear layer.</p>
+</section>
+
+<section class="slide" id="slide-07">
+    <div class="slide-number">07</div>
+    <h2>Backward Through a Linear Layer</h2>
+    <p>The single most-evaluated piece of math in modern deep learning. Forward:</p>
+    <p>$$\mathbf{y} = W\mathbf{x} + \mathbf{b}.$$</p>
+    <p>Suppose we have the upstream gradient $\nabla_\mathbf{y} = \partial \mathcal{L}/\partial \mathbf{y}$. The backward pass produces three things:</p>
+    <p>$$\nabla_\mathbf{x} = W^\top \nabla_\mathbf{y}, \qquad \nabla_W = \nabla_\mathbf{y}\, \mathbf{x}^\top, \qquad \nabla_\mathbf{b} = \nabla_\mathbf{y}.$$</p>
+
+    <h3>Where everything in this formula comes from</h3>
+    <ul>
+        <li><strong>$\nabla_\mathbf{x} = W^\top \nabla_\mathbf{y}$:</strong> the chain rule. $\nabla_\mathbf{x} = (\partial \mathbf{y}/\partial \mathbf{x})^\top \nabla_\mathbf{y} = W^\top \nabla_\mathbf{y}$.</li>
+        <li><strong>$\nabla_W = \nabla_\mathbf{y}\, \mathbf{x}^\top$:</strong> the outer product. Each entry $(\nabla_W)_{ij} = (\nabla_\mathbf{y})_i\, x_j$ &mdash; the upstream gradient on output $i$ times the input that contributed to it.</li>
+        <li><strong>$\nabla_\mathbf{b} = \nabla_\mathbf{y}$:</strong> the bias adds 1 to each component, so its gradient is just the upstream.</li>
+    </ul>
+
+    <h3>The batched version</h3>
+    <p>For a batch of inputs $X \in \mathbb{R}^{B \times d_{in}}$ and outputs $Y = XW^\top + \mathbf{b}$ (PyTorch convention), the backward is</p>
+    <p>$$\nabla_X = \nabla_Y \, W, \qquad \nabla_W = \nabla_Y^\top X, \qquad \nabla_\mathbf{b} = \mathbf{1}^\top \nabla_Y.$$</p>
+    <p>One matmul forward, two matmuls backward. <em>That's why training a transformer takes ~3&times; the FLOPs of inference.</em></p>
+
+    <div class="callout">
+        <div class="callout-label">The 3&times; rule</div>
+        <p>Forward: 1 matmul per linear layer. Backward: 1 matmul to compute $\nabla_X$ (input gradient), 1 matmul to compute $\nabla_W$ (weight gradient). Total 3 matmuls of the same shape. Activations are an additional cost. The famous "training is 3&times; inference FLOPs" rule comes directly from this.</p>
+    </div>
+</section>
+
+<section class="slide" id="slide-08">
+    <div class="slide-number">08</div>
+    <h2>Backward Through Softmax + Cross-Entropy</h2>
+    <p>The combined softmax-then-cross-entropy is the most common output layer in classification &mdash; including next-token prediction in every LLM. Done correctly, the gradient is shockingly simple.</p>
+
+    <p>Forward (logits $\mathbf{z} \in \mathbb{R}^V$, target one-hot $\mathbf{y}^\star$):</p>
+    <p>$$\mathbf{p} = \mathrm{softmax}(\mathbf{z}), \qquad \mathcal{L} = -\sum_i y^\star_i \log p_i.$$</p>
+
+    <p>Backward:</p>
+    <p>$$\nabla_\mathbf{z} = \mathbf{p} - \mathbf{y}^\star.$$</p>
+
+    <p>The gradient of cross-entropy with respect to the logits is just <strong>(predicted distribution) minus (target one-hot)</strong>. No softmax-Jacobian to expand, no division, no logarithm to differentiate. The complexity all cancels.</p>
+
+    <h3>Why the cancellation</h3>
+    <p>The softmax Jacobian $J_{\mathrm{sm}} = \mathrm{diag}(\mathbf{p}) - \mathbf{p}\mathbf{p}^\top$ acts on the cross-entropy gradient $\partial \mathcal{L}/\partial \mathbf{p} = -\mathbf{y}^\star/\mathbf{p}$ (elementwise). Multiplying out:</p>
+    <p>$$J_{\mathrm{sm}}^\top \cdot (-\mathbf{y}^\star/\mathbf{p}) = -(\mathrm{diag}(\mathbf{p}) - \mathbf{p}\mathbf{p}^\top)(\mathbf{y}^\star/\mathbf{p}) = -\mathbf{y}^\star + \mathbf{p}(\mathbf{y}^\star \cdot \mathbf{1}) = \mathbf{p} - \mathbf{y}^\star,$$</p>
+    <p>using $\sum y^\star_i = 1$ for one-hot targets.</p>
+
+    <p>Numerical-stability note: implementing softmax then cross-entropy as separate steps loses precision (the log of a small number is large; small softmax probabilities go to 0 in fp16). The fused operator <code>F.cross_entropy</code> takes logits directly, computes $\log\sum e^{z_i}$ stably, never materialises the probabilities.</p>
+</section>
+
+<section class="slide" id="slide-09">
+    <div class="slide-number">09</div>
+    <h2>Interactive: Backprop Walker</h2>
+    <p>A toy 3-layer MLP with random weights and a fake target. Press "Forward" to see activations propagate. Press "Backward" to see gradients flow in reverse. Each layer's contribution is shown alongside the chain-rule formula being applied.</p>
+
+    <div class="control-panel">
+        <div class="control-row">
+            <button class="btn" id="bp-fwd">Forward</button>
+            <button class="btn" id="bp-bwd">Backward</button>
+            <button class="btn secondary" id="bp-reset">Reset</button>
+            <button class="btn secondary" id="bp-rand">Random init</button>
+        </div>
+    </div>
+
+    <div class="canvas-wrap">
+        <svg id="bp-svg" viewBox="0 0 700 380" width="700" height="380" xmlns="http://www.w3.org/2000/svg">
+            <rect width="700" height="380" fill="#0d1117"/>
+            <g id="bp-layers"></g>
+            <g id="bp-edges"></g>
+        </svg>
+    </div>
+
+    <p id="bp-step" style="font-size: 0.95rem; color: var(--text-secondary); font-family: var(--font-mono);">Press Forward to start. Activations flow left to right; gradients right to left.</p>
+
+    <script>
+    (function(){
+        // Two-input → 3-hidden → 2-hidden → 1-output toy net
+        var dims = [2, 3, 2, 1];
+        var W = []; var b = [];
+        var x, h0, h1, y; // forward activations
+        var dL_dy, dh1, dh0, dx; // gradients
+        var stage = 0; // 0 = fresh, 1..3 forward, 4..7 backward
+        function relu(z){return Math.max(0, z);}
+        function relu_deriv(z){return z > 0 ? 1 : 0;}
+
+        function init() {
+            W = []; b = [];
+            for (var l = 0; l < 3; l++) {
+                var Wi = []; var bi = [];
+                for (var i = 0; i < dims[l+1]; i++) {
+                    var row = [];
+                    for (var j = 0; j < dims[l]; j++) row.push((Math.random()-0.5)*1.5);
+                    Wi.push(row);
+                    bi.push((Math.random()-0.5)*0.4);
+                }
+                W.push(Wi); b.push(bi);
+            }
+            x = [0.7, -0.3];
+            stage = 0;
+            h0 = h1 = y = dL_dy = dh1 = dh0 = dx = null;
+            update();
+        }
+        function lin(M, x, bb) {
+            var out = []; for (var i = 0; i < M.length; i++) { var s = bb[i]; for (var j = 0; j < M[0].length; j++) s += M[i][j] * x[j]; out.push(s); } return out;
+        }
+        function actMap(v) { return v.map(relu); }
+        function actDeriv(v) { return v.map(relu_deriv); }
+        function transposeApply(M, x) {
+            // returns M^T x
+            var n = M[0].length;
+            var out = []; for (var j = 0; j < n; j++) { var s = 0; for (var i = 0; i < M.length; i++) s += M[i][j] * x[i]; out.push(s); } return out;
+        }
+        function elemMul(a, b) { var out = []; for (var i = 0; i < a.length; i++) out.push(a[i] * b[i]); return out; }
+
+        function step() {
+            stage++;
+            if (stage === 1) { var z0 = lin(W[0], x, b[0]); h0 = actMap(z0); h0._pre = z0; }
+            else if (stage === 2) { var z1 = lin(W[1], h0, b[1]); h1 = actMap(z1); h1._pre = z1; }
+            else if (stage === 3) { y = lin(W[2], h1, b[2]); }
+            else if (stage === 4) { dL_dy = [y[0] - 1.0]; }  // gradient of (y - 1)^2/2 w.r.t. y is (y - 1)
+            else if (stage === 5) { dh1 = transposeApply(W[2], dL_dy); dh1 = elemMul(dh1, actDeriv(h1._pre)); }
+            else if (stage === 6) { dh0 = transposeApply(W[1], dh1); dh0 = elemMul(dh0, actDeriv(h0._pre)); }
+            else if (stage === 7) { dx = transposeApply(W[0], dh0); }
+            update();
+        }
+        function back() {
+            if (stage > 0) stage = Math.max(0, stage - 1);
+            // simplistic: don't try to undo, just reset and recompute up to stage
+            var ts = stage; stage = 0;
+            h0 = h1 = y = dL_dy = dh1 = dh0 = dx = null;
+            for (var s = 0; s < ts; s++) step();
+        }
+        function vec2str(v) {
+            if (!v) return '—';
+            return '[' + v.map(function(x){return x.toFixed(2);}).join(', ') + ']';
+        }
+        function colorForGrad(stage, layer) {
+            // Highlight the layer being computed
+            return (stage > 0 && stage <= 3 && stage === layer + 1) ? '#a78bfa' : (stage >= 5 && (8-stage) === layer ? '#f472b6' : '#3a3a3a');
+        }
+        function update() {
+            var W2 = 700, H = 380;
+            var xs = [80, 270, 460, 620];
+            var s = '';
+            // edges
+            var edgeS = '';
+            for (var l = 0; l < 3; l++) {
+                var fromN = dims[l], toN = dims[l+1];
+                for (var i = 0; i < fromN; i++) {
+                    var fy = 100 + i*60 - (fromN-1)*30;
+                    for (var j = 0; j < toN; j++) {
+                        var ty = 100 + j*60 - (toN-1)*30;
+                        var col = '#3a3a3a';
+                        if (stage > 0 && stage === l + 1) col = '#a78bfa';
+                        if (stage >= 5 && stage <= 7 && (8 - stage) === l) col = '#f472b6';
+                        edgeS += '<line x1="'+xs[l]+'" y1="'+fy+'" x2="'+xs[l+1]+'" y2="'+ty+'" stroke="'+col+'" stroke-width="1.2" opacity="0.7"/>';
+                    }
+                }
+            }
+            document.getElementById('bp-edges').innerHTML = edgeS;
+            // nodes
+            var groups = [
+                {label: 'x', vals: x},
+                {label: 'h₀', vals: h0},
+                {label: 'h₁', vals: h1},
+                {label: 'y', vals: y}
+            ];
+            var grads = [
+                {label: 'dL/dx', vals: dx},
+                {label: 'dL/dh₀', vals: dh0},
+                {label: 'dL/dh₁', vals: dh1},
+                {label: 'dL/dy', vals: dL_dy}
+            ];
+            for (var g = 0; g < 4; g++) {
+                var grp = groups[g];
+                for (var i = 0; i < dims[g]; i++) {
+                    var cy = 100 + i*60 - (dims[g]-1)*30;
+                    var v = grp.vals ? grp.vals[i].toFixed(2) : '—';
+                    s += '<circle cx="'+xs[g]+'" cy="'+cy+'" r="22" fill="#161b22" stroke="#a78bfa" stroke-width="1.5"/>';
+                    s += '<text x="'+xs[g]+'" y="'+(cy+5)+'" fill="#e6edf3" font-family="JetBrains Mono" font-size="13" text-anchor="middle">'+v+'</text>';
+                }
+                s += '<text x="'+xs[g]+'" y="40" fill="#a78bfa" font-family="Space Grotesk" font-size="14" font-weight="700" text-anchor="middle">'+grp.label+'</text>';
+                // grad below
+                if (grads[g].vals) {
+                    var gradStr = vec2str(grads[g].vals);
+                    s += '<text x="'+xs[g]+'" y="'+(H-50)+'" fill="#f472b6" font-family="JetBrains Mono" font-size="11" text-anchor="middle">'+grads[g].label+'</text>';
+                    s += '<text x="'+xs[g]+'" y="'+(H-30)+'" fill="#f472b6" font-family="JetBrains Mono" font-size="10" text-anchor="middle">'+gradStr+'</text>';
+                }
+            }
+            document.getElementById('bp-layers').innerHTML = s;
+            // step explanation
+            var msgs = [
+                'Press Forward to start. Activations flow left to right; gradients right to left.',
+                'Forward 1: h₀ = ReLU(W₀ x + b₀)',
+                'Forward 2: h₁ = ReLU(W₁ h₀ + b₁)',
+                'Forward 3: y = W₂ h₁ + b₂  →  L = ½ (y − 1)²',
+                'Backward 1: dL/dy = y − 1   (gradient of squared loss)',
+                'Backward 2: dL/dh₁ = (W₂ᵀ · dL/dy) ⊙ ReLU′(z₁)',
+                'Backward 3: dL/dh₀ = (W₁ᵀ · dL/dh₁) ⊙ ReLU′(z₀)',
+                'Backward 4: dL/dx = W₀ᵀ · dL/dh₀ — gradient propagated all the way back to input'
+            ];
+            document.getElementById('bp-step').textContent = msgs[stage];
+        }
+        document.getElementById('bp-fwd').addEventListener('click', function(){ if (stage < 3) step(); });
+        document.getElementById('bp-bwd').addEventListener('click', function(){ if (stage < 3) { while (stage < 3) step(); } step(); });
+        document.getElementById('bp-reset').addEventListener('click', function(){ stage = 0; h0 = h1 = y = dL_dy = dh1 = dh0 = dx = null; update(); });
+        document.getElementById('bp-rand').addEventListener('click', init);
+        init();
+    })();
+    </script>
+
+    <p style="margin-top: 1rem;">The violet edges light up when their layer is computing the forward pass; pink edges light up during the backward pass. Watch how the gradient $\mathrm{d}\mathcal{L}/\mathrm{d}\mathbf{y}$ at the right propagates step-by-step to $\mathrm{d}\mathcal{L}/\mathrm{d}\mathbf{x}$ at the left, multiplied by $W_i^\top$ at each linear layer and gated by the ReLU derivative.</p>
+</section>
+
+<section class="slide" id="slide-10">
+    <div class="slide-number">10</div>
+    <h2>Cheat Sheet</h2>
+    <ul>
+        <li>A derivative <em>is</em> a linear map &mdash; the best linear approximation to a function near a point. The Jacobian is its matrix.</li>
+        <li>For $f : \mathbb{R}^n \to \mathbb{R}^m$: $J \in \mathbb{R}^{m \times n}$. Special cases: scalar (1&times;1, ordinary derivative), vector input scalar output (gradient = transpose of Jacobian).</li>
+        <li><strong>Chain rule = matrix multiplication.</strong> $J_f = J_L \cdots J_1$ for $f = f_L \circ \cdots \circ f_1$.</li>
+        <li><strong>JVP</strong> $J\mathbf{v}$ is forward mode; <strong>VJP</strong> $J^\top\mathbf{w}$ is reverse mode. Each costs ~one forward pass.</li>
+        <li><strong>Backprop is reverse mode.</strong> Loss has 1 output, $P$ inputs &mdash; reverse is $P\times$ cheaper than forward.</li>
+        <li>Linear layer backward: $\nabla_\mathbf{x} = W^\top \nabla_\mathbf{y}$, $\nabla_W = \nabla_\mathbf{y} \mathbf{x}^\top$, $\nabla_\mathbf{b} = \nabla_\mathbf{y}$. Three matmuls per layer (1 fwd + 2 bwd) &mdash; the famous 3&times; rule for training cost.</li>
+        <li>Softmax + cross-entropy: $\nabla_\mathbf{z} = \mathbf{p} - \mathbf{y}^\star$. Use the fused op for stability.</li>
+        <li>Activation memory dominates training. Tricks: gradient checkpointing, FlashAttention, mixed precision, ZeRO sharding.</li>
+        <li>Residual connections give $J = I + J_f$ &mdash; products near identity, gradient stays well-conditioned across depth.</li>
+    </ul>
+
+    <div class="callout">
+        <div class="callout-label">Read next</div>
+        <p>Deck <strong>10 &mdash; Attention as Linear Algebra</strong> applies all of the above to one specific operation: scaled dot-product attention. By the end you can read every matmul, every gradient, every shape annotation in a real attention implementation.</p>
+    </div>
+</section>
+
+<footer class="footer">
+    <p>Part of the <a href="https://github.com/BrendanJamesLynskey/LLM_Hub_Linear_Algebra">Linear Algebra for AI / ML</a> series. Sources: Linnainmaa 1970; Speelpenning 1980; Rumelhart, Hinton &amp; Williams, "Learning representations by back-propagating errors", Nature 1986; Chen et al., "Training Deep Nets with Sublinear Memory Cost", arXiv:1604.06174 (2016); Dao et al., "FlashAttention", NeurIPS 2022; He et al., "Deep Residual Learning for Image Recognition", CVPR 2016.</p>
+</footer>
+
+</body>
+</html>
