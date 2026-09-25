@@ -6,12 +6,12 @@
     <title>Linear Algebra for AI 09 &mdash; Gradients, Jacobians &amp; Backprop</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700&family=Space+Grotesk:wght@400;500;600;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Alegreya:ital,wght@0,400;0,500;0,600;0,700;1,400;1,700&family=Alegreya+Sans:ital,wght@0,300;0,400;0,500;0,700;1,400;1,700&family=Fira+Mono:wght@400;500;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css">
     <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.js"></script>
     <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/contrib/auto-render.min.js" onload="renderMathInElement(document.body,{delimiters:[{left:'$$',right:'$$',display:true},{left:'$',right:'$',display:false}]})"></script>
     <style>
-        :root { --bg-primary: #222d29; --bg-card: #28342f; --bg-code: #2f3c37; --text-primary: #ecebe3; --text-secondary: #9caaa2; --accent: #c6b6e7; --accent-dim: #c6b6e744; --accent-glow: #c6b6e733; --accent-2: #e9a9c2; --accent-3: #f0e190; --accent-4: #a9dba2; --border: #3e4e48; --font-display: 'Space Grotesk', sans-serif; --font-mono: 'JetBrains Mono', 'Fira Code', monospace; --font-body: 'Inter', sans-serif; --max-width: 900px; }
+        :root { --bg-primary: #222d29; --bg-card: #28342f; --bg-code: #2f3c37; --text-primary: #ecebe3; --text-secondary: #9caaa2; --accent: #c6b6e7; --accent-dim: #c6b6e744; --accent-glow: #c6b6e733; --accent-2: #e9a9c2; --accent-3: #f0e190; --accent-4: #a9dba2; --border: #3e4e48; --font-display: 'Alegreya', sans-serif; --font-mono: 'Fira Mono', 'Fira Mono', monospace; --font-body: 'Alegreya Sans', sans-serif; --max-width: 900px; }
         *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
         html { scroll-behavior: smooth; }
         body { background: var(--bg-primary); color: var(--text-primary); font-family: var(--font-body); font-size: 17px; line-height: 1.7; overflow-x: hidden; }
@@ -428,14 +428,14 @@
                     var cy = 100 + i*60 - (dims[g]-1)*30;
                     var v = grp.vals ? grp.vals[i].toFixed(2) : '—';
                     s += '<circle cx="'+xs[g]+'" cy="'+cy+'" r="22" fill="#2f3c37" stroke="#c6b6e7" stroke-width="1.5"/>';
-                    s += '<text x="'+xs[g]+'" y="'+(cy+5)+'" fill="#ecebe3" font-family="JetBrains Mono" font-size="13" text-anchor="middle">'+v+'</text>';
+                    s += '<text x="'+xs[g]+'" y="'+(cy+5)+'" fill="#ecebe3" font-family="Fira Mono" font-size="13" text-anchor="middle">'+v+'</text>';
                 }
-                s += '<text x="'+xs[g]+'" y="40" fill="#c6b6e7" font-family="Space Grotesk" font-size="14" font-weight="700" text-anchor="middle">'+grp.label+'</text>';
+                s += '<text x="'+xs[g]+'" y="40" fill="#c6b6e7" font-family="Alegreya" font-size="14" font-weight="700" text-anchor="middle">'+grp.label+'</text>';
                 // grad below
                 if (grads[g].vals) {
                     var gradStr = vec2str(grads[g].vals);
-                    s += '<text x="'+xs[g]+'" y="'+(H-50)+'" fill="#e9a9c2" font-family="JetBrains Mono" font-size="11" text-anchor="middle">'+grads[g].label+'</text>';
-                    s += '<text x="'+xs[g]+'" y="'+(H-30)+'" fill="#e9a9c2" font-family="JetBrains Mono" font-size="10" text-anchor="middle">'+gradStr+'</text>';
+                    s += '<text x="'+xs[g]+'" y="'+(H-50)+'" fill="#e9a9c2" font-family="Fira Mono" font-size="11" text-anchor="middle">'+grads[g].label+'</text>';
+                    s += '<text x="'+xs[g]+'" y="'+(H-30)+'" fill="#e9a9c2" font-family="Fira Mono" font-size="10" text-anchor="middle">'+gradStr+'</text>';
                 }
             }
             document.getElementById('bp-layers').innerHTML = s;
